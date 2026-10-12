@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Animal House Obby — Preposition Quest</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#bde9ff;color:#183047;overflow:hidden}
+button{font-weight:bold;border:0;border-radius:12px;padding:10px 14px;cursor:pointer;background:#ffcf55;color:#25344b}
+#game{position:fixed;inset:0}
+#hud{position:fixed;top:8px;left:8px;right:8px;display:flex;gap:8px;align-items:flex-start;justify-content:space-between;pointer-events:none}
+.panel{background:#ffffffed;border:2px solid #fff;border-radius:14px;padding:10px;box-shadow:0 3px 10px #315a7720;pointer-events:auto}
+#stats{font-size:13px;line-height:1.7;min-width:100px}
+#mission{width:min(430px,65vw);font-size:14px}
+#mission strong{font-size:16px}
+#sentence{font-size:18px;font-weight:bold;min-height:30px;margin:8px 0}
+#words{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.tile{background:#e1efff;border:2px solid #a4c9ef;padding:9px 10px;border-radius:9px;font-size:15px}
+.tile.used{opacity:.25}
+#feedback{min-height:20px;font-size:13px;font-weight:bold}
+#controls{position:fixed;bottom:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none}
+.pad{display:grid;grid-template-columns:48px 48px 48px;grid-template-rows:48px 48px 48px;gap:4px;pointer-events:auto}
+.pad button{padding:0;font-size:23px;background:#ffffffdf;border:2px solid white;touch-action:none}
+.pad .up{grid-column:2;grid-row:1}.pad .left{grid-column:1;grid-row:2}.pad .down{grid-column:2;grid-row:2}.pad .right{grid-column:3;grid-row:2}
+#actions{display:flex;flex-direction:column;gap:8px;pointer-events:auto}
+#actions button{font-size:14px;min-width:105px;min-height:44px}
+#jump{background:#bce9a4}
+#modal{position:fixed;inset:0;background:#143149b8;display:flex;align-items:center;justify-content:center;padding:15px;z-index:10}
+#modalBox{width:min(520px,100%);max-height:90vh;overflow:auto;background:white;border-radius:20px;padding:22px;text-align:center}
+#modalBox h1{font-size:26px;margin:5px 0 12px}
+#modalBox p{line-height:1.5}
+#name{font-size:16px;padding:12px;width:100%;border:2px solid #d2e4f4;border-radius:10px;margin:8px 0}
+#leader{text-align:left;line-height:1.8}
+#leader button{margin-left:5px}
+.small{font-size:12px;color:#557084}
+#mobileHint{position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:#ffffffdf;border-radius:10px;padding:7px 10px;font-size:12px;white-space:nowrap;pointer-events:none}
+@media(max-width:600px){
+ #hud{gap:5px}
+ .panel{padding:7px}
+ #stats{min-width:78px;font-size:11px}
+ #mission{width:calc(100vw - 110px);font-size:12px}
+ #mission strong{font-size:14px}
+ #sentence{font-size:15px}
+ .tile{font-size:13px;padding:7px}
+ #controls{bottom:8px;left:7px;right:7px}
+ .pad{grid-template-columns:43px 43px 43px;grid-template-rows:43px 43px 43px}
+ #actions button{min-width:88px;padding:9px 5px;font-size:12px}
+ #mobileHint{bottom:148px}
+}
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="hud">
+  <div id="stats" class="panel">
+    <b>🐾 ANIMAL OBBY</b><br>
+    Mission: <span id="progress">0/20</span><br>
+    Score: <span id="score">0</span><br>
+    Time: <span id="timer">60</span>s
+  </div>
+  <div id="mission" class="panel">
+    <strong id="missionTitle">Welcome!</strong>
+    <div id="missionText">Explore the house and find the animals.</div>
+    <div id="sentence">Ready to play?</div>
+    <div id="words"></div>
+    <div id="feedback"></div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      <button id="submit" onclick="submitAnswer()">Submit ✓</button>
+      <button onclick="clearAnswer()">Clear ↺</button>
+      <button onclick="showHint()">Hint 💡</button>
+    </div>
+  </div>
+</div>
+
+<div id="mobileHint">Find the glowing animals, then tap FOUND IT!</div>
+
+<div id="controls">
+  <div class="pad">
+    <button class="up" data-key="ArrowUp">▲</button>
+    <button class="left" data-key="ArrowLeft">◀</button>
+    <button class="down" data-key="ArrowDown">▼</button>
+    <button class="right" data-key="ArrowRight">▶</button>
+  </div>
+  <div id="actions">
+    <button id="jump" data-key="Space">JUMP ⤴</button>
+    <button onclick="foundAnimals()">🐾 FOUND IT!</button>
+  </div>
+</div>
+
+<div id="modal">
+ <div id="modalBox">
+  <h1>🐾 Animal House Obby</h1>
+  <h2>Preposition Quest</h2>
+  <p>Explore the blocky house, find the animals and arrange the words to make the correct sentence.</p>
+  <p><b>Learn:</b> ON · IN · UNDER</p>
+  <p>🖥️ Computer: WASD or arrow keys + Space to jump.<br>
+  📱 Phone: Use the arrow buttons to move.</p>
+  <input id="name" maxlength="16" placeholder="Enter your nickname">
+  <br><button onclick="startGame()" style="font-size:18px;padding:13px 24px">START GAME ▶</button>
+  <p class="small">Your score and leaderboard are saved locally on this browser.</p>
+  <div id="leader"></div>
+ </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+const missions=[
+{a:"cat",n:1,p:"on",f:"bed",r:"Bedroom"},
+{a:"duck",n:2,p:"in",f:"bathtub",r:"Bathroom"},
+{a:"spider",n:1,p:"under",f:"chair",r:"Living Room"},
+{a:"rat",n:3,p:"on",f:"sofa",r:"Living Room"},
+{a:"dog",n:1,p:"in",f:"box",r:"Bedroom"},
+{a:"elephant",n:4,p:"under",f:"table",r:"Dining Room"},
+{a:"duck",n:1,p:"on",f:"chair",r:"Kitchen"},
+{a:"spider",n:5,p:"in",f:"basket",r:"Bedroom"},
+{a:"rat",n:1,p:"under",f:"bed",r:"Bedroom"},
+{a:"cat",n:2,p:"on",f:"sofa",r:"Living Room"},
+{a:"elephant",n:1,p:"in",f:"room",r:"Kitchen"},
+{a:"dog",n:3,p:"under",f:"table",r:"Dining Room"},
+{a:"lizard",n:1,p:"on",f:"box",r:"Kitchen"},
+{a:"frog",n:4,p:"in",f:"bathtub",r:"Bathroom"},
+{a:"frog",n:1,p:"under",f:"chair",r:"Kitchen"},
+{a:"lizard",n:5,p:"on",f:"table",r:"Dining Room"},
+{a:"spider",n:1,p:"in",f:"basket",r:"Living Room"},
+{a:"rat",n:2,p:"under",f:"bed",r:"Bedroom"},
+{a:"duck",n:1,p:"in",f:"bathtub",r:"Bathroom"},
+{a:"elephant",n:3,p:"on",f:"platform",r:"Dining Room"}
+];
+
+let scene,camera,renderer,clock;
+let player,animalGroup,targetMarker;
+let started=false,missionIndex=0,score=0,timeLeft=60;
+let timerInterval=null,wordTiles=[],chosen=[],found=false,finished=false;
+let keys={},velocityY=0,onGround=true;
+let nickname="Player";
+let furniture={};
+let animalTarget=new THREE.Vector3();
+let playerSpeed=0.15;
+const roomData={
+"Living Room":{x:-14,z:3,c:0xf8d9a5},
+"Bedroom":{x:0,z:3,c:0xe1d7ff},
+"Kitchen":{x:14,z:3,c:0xc8f0cf},
+"Bathroom":{x:-14,z:-12,c:0xc9eaff},
+"Dining Room":{x:0,z:-12,c:0xffd8e3}
+};
+
+if(!window.THREE){
+ $("missionTitle").textContent="Game failed to load";
+ $("missionText").textContent="Three.js could not load. Check your internet connection and refresh.";
+ return;
+}
+
+scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9bd8ff);
+scene.fog=new THREE.Fog(0x9bd8ff,45,100);
+
+camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.1,200);
+renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+$("game").appendChild(renderer.domElement);
+clock=new THREE.Clock();
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x738a9d,1.6));
+const sun=new THREE.DirectionalLight(0xffffff,1.5);
+sun.position.set(-15,30,20);
+sun.castShadow=true;
+scene.add(sun);
+
+function mat(color){return new THREE.MeshStandardMaterial({color,roughness:.85});}
+function cube(parent,x,y,z,w,h,d,color){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));
+ m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;
+ parent.add(m);return m;
+}
+function sphere(parent,x,y,z,r,color){
+ const m=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),mat(color));
+ m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m;
+}
+function label(text,x,y,z,color="#24374d"){
+ const canvas=document.createElement("canvas");
+ canvas.width=512;canvas.height=128;
+ const ctx=canvas.getContext("2d");
+ ctx.fillStyle="rgba(255,255,255,.92)";
+ ctx.fillRect(4,4,504,120);
+ ctx.strokeStyle="#ffffff";ctx.lineWidth=8;ctx.strokeRect(4,4,504,120);
+ ctx.fillStyle=color;ctx.font="bold 43px Arial";ctx.textAlign="center";
+ ctx.fillText(text,256,80);
+ const tex=new THREE.CanvasTexture(canvas);
+ const m=new THREE.Mesh(new THREE.PlaneGeometry(4.2,1),new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide}));
+ m.position.set(x,y,z);scene.add(m);return m;
+}
+
+function buildWorld(){
+ cube(scene,0,-.45,-4,48,.8,39,0x8ccf8b);
+
+ for(const [name,r] of Object.entries(roomData)){
+   cube(scene,r.x,0,r.z,13,.15,12,r.c);
+   // room walls kept low so children can see inside
+   cube(scene,r.x,1.1,r.z-6,13,2.2,.25,0xfff4df);
+   cube(scene,r.x-6.5,1.1,r.z, .25,2.2,12,0xfff4df);
+   cube(scene,r.x+6.5,1.1,r.z, .25,2.2,12,0xfff4df);
+   cube(scene,r.x,1.1,r.z+6,4,2.2,.25,0xfff4df);
+   label(name.toUpperCase(),r.x,3.2,r.z-5.6);
+ }
+
+ // house details and furniture: all furniture is positioned in the world.
+ function addFurniture(name,room,x,z,type){
+   const r=roomData[room];
+   const gx=r.x+x,gz=r.z+z;
+   const g=new THREE.Group();g.position.set(gx,0,gz);scene.add(g);
+   const wood=0xb7794e, dark=0x78513b;
+   if(type==="bed"){
+     cube(g,0,.5,0,3.6,.45,2.5,0xfff2f7);
+     cube(g,0,.8,0,3.4,.25,2.3,0x8db5ed);
+     cube(g,-1.1,1, -.7,1,.22,.6,0xffffff);
+     for(const [xx,zz] of [[-1.5,-1],[1.5,-1],[-1.5,1],[1.5,1]])cube(g,xx,.22,zz,.18,.45,.18,wood);
+     furniture.bed=furniture.bed||[];furniture.bed.push({room,position:new THREE.Vector3(gx,0,gz),group:g});
+   }
+   if(type==="sofa"){
+     cube(g,0,.5,0,3.5,.7,1.3,0x4f9d83);
+     cube(g,0,1,-.55,3.5,1,.3,0x347d68);
+     cube(g,-1.5,.9,0,.4,.8,1.5,0x347d68);
+     cube(g,1.5,.9,0,.4,.8,1.5,0x347d68);
+     furniture.sofa=furniture.sofa||[];furniture.sofa.push({room,position:new THREE.Vector3(gx,0,gz),group:g});
+   }
+   if(type==="chair"){
+     cube(g,0,.65,0,1.2,.2,1.2,wood);
+     cube(g,0,1.35,-.5,1.2,1.2,.18,dark);
+     for(const xx of [-.45,.45])for(const zz of [-.45,.45])cube(g,xx,.32,zz,.15,.65,.15,wood);
+     furniture.chair=furniture.chair||[];furniture.chair.push({room,position:new THREE.Vector3(gx,0,gz),group:g});
+   }
+   if(type==="table"){
+     cube(g,0,1.15,0,3.1,.25,2.1,wood);
+     for(const xx of [-1.25,1.25])for(const zz of [-.8,.8])cube(g,xx,.55,zz,.18,1.1,.18,dark);
+     furniture.table=furniture.table||[];furniture.table.push({room,position:new THREE.Vector3(gx,0,gz),group:g});
+   }
+   if(type==="bathtub"){
+     cube(g,0,.45,0,2.8,.75,1.5,0xffffff);
+     cube(g,0,.78,0,2.35,.12,1.05,0x7fd9ef);
+     cube(g,0,.82,-.65,2.8,.25,.18,0xffffff);
+     furniture.bathtub=furniture.bathtub||[];furniture.bathtub.push({room,position:new THREE.Vector3(gx,0,gz),group:g});
+   }
+   if(type==="box"){
+     cube(g,0,.5,0,1.5,1,1.5,0xd7a56c);
+     cube(g,0,1.03,0,1.55,.12,1.55,0xe9c58f);
+     furniture.box=furniture.box||[];furniture.box.push({room,position:new THREE.Vector3(gx,0,gz),group:g});
+   }
+   if(type==="basket"){
+     cube(g,0,.4,0,1.5,.8,1.5,0xc58b55);
+     cube(g,0,.85,0,1.6,.12,1.6,0xe1b67f);
+     furniture.basket=furniture.basket||[];furniture.basket.push({room,position:new THREE.Vector3(gx,0,gz),group:g});
+   }
+   if(type==="platform"){
+     cube(g,0,.3,0,3.2,.6,2.8,0xf0c34e);
+     furniture.platform=furniture.platform||[];furniture.platform.push({room,position:new THREE.Vector3(gx,0,gz),group:g});
+   }
+   return g;
+ }
+
+ addFurniture("bed","Bedroom",-2,1,"bed");
+ addFurniture("sofa","Living Room",1,1,"sofa");
+ addFurniture("chair","Living Room",-3,-2,"chair");
+ addFurniture("table","Dining Room",1,1,"table");
+ addFurniture("bathtub","Bathroom",1,0,"bathtub");
+ addFurniture("box","Bedroom",3,-2,"box");
+ addFurniture("basket","Bedroom",-3,-2,"basket");
+ addFurniture("chair","Kitchen",-2,-2,"chair");
+ addFurniture("table","Dining Room",-3,-2,"table");
+ addFurniture("box","Kitchen",2,2,"box");
+ addFurniture("basket","Living Room",-3,2,"basket");
+ addFurniture("bed","Bedroom",2,2,"bed");
+ addFurniture("platform","Dining Room",-3,2,"platform");
+
+ // decorative trees around the house
+ for(let i=0;i<12;i++){
+   const x=(i%4)*13-20,z=Math.floor(i/4)*15-16;
+   const trunk=cube(scene,x,.65,z,.55,1.3,.55,0x8b5a36);
+   sphere(scene,x,1.8,z,1.1,0x4caa69);
+ }
+}
+
+function makePlayer(){
+ player=new THREE.Group();
+ const body=cube(player,0,1,0,.8,1,.45,0x478be8);
+ cube(player,0,1.85,0,.62,.62,.62,0xffd6ad);
+ cube(player,-.35,.55,0,.22,.8,.25,0x334e9c);
+ cube(player,.35,.55,0,.22,.8,.25,0x334e9c);
+ cube(player,-.55,1.1,0,.2,.75,.25,0xffd6ad);
+ cube(player,.55,1.1,0,.2,.75,.25,0xffd6ad);
+ cube(player,0,2.22,-.03,.66,.18,.68,0x6b4931);
+ player.position.set(-14,0,6);
+ scene.add(player);
+}
+
+function makeAnimal(type,x,y,z,scale=1){
+ const g=new THREE.Group();g.position.set(x,y,z);g.scale.setScalar(scale);
+ const colors={cat:0xf1a45a,dog:0xb77b4c,duck:0xffd83d,spider:0x353847,rat:0xb7b8c6,elephant:0x9ba6b7,lizard:0x5aaf67,frog:0x51b96a};
+ const c=colors[type]||0xffcc44;
+ if(type==="duck"){
+   sphere(g,0,.35,0,.36,c);sphere(g,.22,.55,-.02,.25,c);
+   cube(g,.47,.5,-.02,.3,.12,.12,0xff8c36);
+   sphere(g,.29,.61,-.2,.045,0x222222);
+   cube(g,-.08,.05,0,.08,.18,.08,0xff8c36);
+ }else if(type==="spider"){
+   sphere(g,0,.32,0,.28,c);
+   sphere(g,0,.57,0,.2,0x252633);
+   for(let i=0;i<4;i++){
+     const s=i<2?-1:1, zz=(i%2?-.16:.16);
+     const leg=cube(g,s*.32,.25,zz,.5,.07,.08,c);
+     leg.rotation.z=s*.45;
+   }
+   sphere(g,-.07,.62,-.16,.045,0xffffff);sphere(g,.07,.62,-.16,.045,0xffffff);
+ }else if(type==="rat"||type==="cat"||type==="dog"){
+   sphere(g,0,.35,0,.34,c);
+   sphere(g,0,.68,-.08,.27,c);
+   if(type==="cat"){
+     const ear1=cube(g,-.17,.92,-.05,.15,.28,.13,c);
+     ear1.rotation.z=-.3;
+     const ear2=cube(g,.17,.92,-.05,.15,.28,.13,c);ear2.rotation.z=.3;
+     sphere(g,-.09,.7,-.3,.04,0x222222);sphere(g,.09,.7,-.3,.04,0x222222);
+   }else if(type==="dog"){
+     sphere(g,-.22,.68,.02,.14,0x714529);sphere(g,.22,.68,.02,.14,0x714529);
+     sphere(g,.09,.7,-.3,.04,0x222222);sphere(g,-.09,.7,-.3,.04,0x222222);
+   }else{
+     sphere(g,.18,.7,-.1,.07,0xf5a2b9);
+     sphere(g,.09,.7,-.3,.04,0x222222);sphere(g,-.09,.7,-.3,.04,0x222222);
+     const tail=cube(g,-.4,.27,.1,.35,.07,.07,0xb9a0a0);tail.rotation.z=-.4;
+   }
+ }else if(type==="elephant"){
+   sphere(g,0,.48,0,.48,c);sphere(g,0,.9,-.05,.35,c);
+   sphere(g,-.36,.85,0,.22,0x8995a7);sphere(g,.36,.85,0,.22,0x8995a7);
+   cube(g,0,.58,-.45,.16,.45,.18,c);
+   sphere(g,-.12,.98,-.35,.04,0x222222);sphere(g,.12,.98,-.35,.04,0x222222);
+ }else{
+   sphere(g,0,.36,0,.36,c);sphere(g,0,.68,-.03,.29,c);
+   sphere(g,-.12,.91,-.06,.09,c);sphere(g,.12,.91,-.06,.09,c);
+   sphere(g,-.12,.93,-.13,.035,0xffffff);sphere(g,.12,.93,-.13,.035,0xffffff);
+ }
+ scene.add(g);return g;
+}
+
+function getFurnitureFor(m){
+ const list=furniture[m.f]||[];
+ return list.find(x=>x.room===m.r)||list[0]||null;
+}
+function targetPosition(m){
+ const item=getFurnitureFor(m);
+ if(!item){
+   const r=roomData[m.r];return new THREE.Vector3(r.x,0,r.z);
+ }
+ const p=item.position.clone();
+ if(m.p==="on")p.y=1.5;
+ else if(m.p==="under")p.y=.1;
+ else p.y=.65;
+ return p;
+}
+function clearAnimals(){
+ if(animalGroup){scene.remove(animalGroup);animalGroup.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
+ if(targetMarker){scene.remove(targetMarker);targetMarker=null;}
+}
+function spawnAnimals(){
+ clearAnimals();
+ const m=missions[missionIndex];
+ animalGroup=new THREE.Group();scene.add(animalGroup);
+ animalTarget.copy(targetPosition(m));
+ const n=m.n;
+ for(let i=0;i<n;i++){
+   const dx=((i%3)-1)*.6, dz=(Math.floor(i/3)-.5)*.6;
+   let y=animalTarget.y;
+   if(m.p==="under")y=.08;
+   if(m.p==="on")y=1.25;
+   if(m.p==="in")y=.65;
+   const a=makeAnimal(m.a,animalTarget.x+dx,y,animalTarget.z+dz,.68);
+   animalGroup.add(a);
+ }
+ targetMarker=new THREE.Group();
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(1.1,.08,8,32),new THREE.MeshBasicMaterial({color:0xffe74c}));
+ ring.rotation.x=Math.PI/2;targetMarker.add(ring);
+ const beam=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,2.5,8),new THREE.MeshBasicMaterial({color:0xffe74c,transparent:true,opacity:.6}));
+ beam.position.y=1.4;targetMarker.add(beam);
+ targetMarker.position.set(animalTarget.x,.1,animalTarget.z);
+ scene.add(targetMarker);
+}
+
+function makeTiles(){
+ const m=missions[missionIndex];
+ const noun=(m.n===1?"a "+m.a:wordsNumber(m.n)+" "+plural(m.a));
+ const sentence=(m.p==="on"?"on":m.p==="in"?"in":"under");
+ const words=["There",m.n===1?"is":"are",noun,sentence,"the",m.f+"."];
+ const expanded=[];
+ words.forEach(w=>{
+   if(w.includes(" "))w.split(" ").forEach(q=>expanded.push(q));
+   else expanded.push(w);
+ });
+ // Make punctuation a separate tile when needed.
+ wordTiles=expanded.map((w,i)=>({id:i,text:w}));
+ wordTiles.sort(()=>Math.random()-.5);
+ chosen=[];
+ renderTiles();
+ $("sentence").textContent="";
+}
+function wordsNumber(n){return ["zero","one","two","three","four","five"][n]||String(n);}
+function plural(a){
+ if(a==="spider")return "spiders";
+ if(a==="rat")return "rats";
+ if(a==="duck")return "ducks";
+ if(a==="cat")return "cats";
+ if(a==="dog")return "dogs";
+ if(a==="elephant")return "elephants";
+ if(a==="lizard")return "lizards";
+ if(a==="frog")return "frogs";
+ return a+"s";
+}
+function renderTiles(){
+ const box=$("words");box.innerHTML="";
+ wordTiles.forEach((t,i)=>{
+   const b=document.createElement("button");b.className="tile"+(chosen.includes(t.id)?" used":"");
+   b.textContent=t.text;b.disabled=chosen.includes(t.id)||!found;
+   b.onclick=()=>{if(!chosen.includes(t.id)){chosen.push(t.id);renderTiles();renderSentence();}};
+   box.appendChild(b);
+ });
+}
+function renderSentence(){
+ $("sentence").textContent=chosen.map(id=>wordTiles.find(t=>t.id===id).text).join(" ");
+}
+window.clearAnswer=function(){chosen=[];renderTiles();renderSentence();$("feedback").textContent="";};
+window.showHint=function(){
+ const m=missions[missionIndex];
+ $("feedback").textContent="Hint: "+(m.n===1?"There is a":"There are")+" ... "+m.p+" the "+m.f+".";
+};
+window.submitAnswer=function(){
+ if(!started||finished)return;
+ if(!found){$("feedback").textContent="Find the animals first! Use FOUND IT when you are nearby.";return;}
+ const m=missions[missionIndex];
+ const correct="There "+(m.n===1?"is":"are")+" "+(m.n===1?"a "+m.a:wordsNumber(m.n)+" "+plural(m.a))+" "+m.p+" the "+m.f+".";
+ const answer=chosen.map(id=>wordTiles.find(t=>t.id===id).text).join(" ");
+ if(answer.toLowerCase()===correct.toLowerCase()){
+   score=Math.min(2000,score+100);
+   $("score").textContent=score;
+   $("feedback").textContent="🌟 Excellent! +100 points!";
+   $("submit").disabled=true;
+   setTimeout(()=>{
+     if(!started||finished)return;
+     missionIndex++;
+     if(missionIndex>=missions.length){finishGame();return;}
+     loadMission();
+   },1000);
+ }else{
+   $("feedback").textContent="Almost! Check the word order and punctuation.";
+ }
+};
+window.foundAnimals=function(){
+ if(!started||finished)return;
+ const dx=player.position.x-animalTarget.x,dz=player.position.z-animalTarget.z;
+ if(Math.sqrt(dx*dx+dz*dz)<5.5){
+   found=true;
+   $("feedback").textContent="🐾 You found them! Now arrange the words.";
+   renderTiles();
+ }else{
+   $("feedback").textContent="Not close enough! Follow the glowing yellow marker.";
+ }
+};
+
+function loadMission(){
+ found=false;
+ timeLeft=60;
+ $("timer").textContent=timeLeft;
+ $("progress").textContent=missionIndex+"/20";
+ $("missionTitle").textContent="MISSION "+(missionIndex+1);
+ const m=missions[missionIndex];
+ $("missionText").textContent="Find "+(m.n===1?"the "+m.a:wordsNumber(m.n)+" "+plural(m.a))+" in the "+m.r+".";
+ $("feedback").textContent="Move around and find the glowing animals.";
+ $("submit").disabled=false;
+ spawnAnimals();
+ makeTiles();
+}
+function startGame(){
+ nickname=$("name").value.trim().slice(0,16)||"Player";
+ $("modal").style.display="none";
+ started=true;finished=false;missionIndex=0;score=0;
+ $("score").textContent="0";
+ loadMission();
+ if(timerInterval)clearInterval(timerInterval);
+ timerInterval=setInterval(()=>{
+   if(!started||finished)return;
+   timeLeft--;
+   $("timer").textContent=timeLeft;
+   if(timeLeft<=0){
+     timeLeft=60;
+     $("timer").textContent=timeLeft;
+     $("feedback").textContent="⏰ Time reset! Keep looking for the animals.";
+   }
+ },1000);
+}
+window.startGame=startGame;
+
+function finishGame(){
+ finished=true;started=false;
+ if(timerInterval)clearInterval(timerInterval);
+ saveScore(nickname,score);
+ $("modal").style.display="flex";
+ $("modalBox").innerHTML=
+ '<h1>🏆 Game Complete!</h1>'+
+ '<h2>'+escapeHtml(nickname)+'</h2>'+
+ '<p>You completed all 20 missions!</p>'+
+ '<p style="font-size:24px">⭐ Score: '+score+' / 2000</p>'+
+ '<button onclick="location.reload()" style="font-size:18px">PLAY AGAIN ↻</button>'+
+ '<div id="leader"></div>'+
+ '<p class="small">Leaderboard is stored only on this browser.</p>';
+ renderLeaderboard();
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function saveScore(name,sc){
+ let arr=[];
+ try{arr=JSON.parse(localStorage.getItem("animalObbyScores")||"[]");}catch(e){}
+ arr.push({name,score:sc,date:Date.now()});
+ arr.sort((a,b)=>b.score-a.score||a.date-b.date);
+ localStorage.setItem("animalObbyScores",JSON.stringify(arr.slice(0,20)));
+}
+function renderLeaderboard(){
+ const el=$("leader");if(!el)return;
+ let arr=[];try{arr=JSON.parse(localStorage.getItem("animalObbyScores")||"[]");}catch(e){}
+ el.innerHTML="<h3>🏅 TOP 20 LEADERBOARD</h3>"+(arr.length?arr.map((v,i)=>"<div>"+(["🥇","🥈","🥉"][i]||((i+1)+". "))+" "+escapeHtml(v.name)+" — "+v.score+"</div>").join(""):"<p>No scores yet.</p>")+
+ '<p><button onclick="resetLeaderboard()">Reset leaderboard</button></p>';
+}
+window.resetLeaderboard=function(){
+ if(confirm("Delete all saved leaderboard scores on this browser?")){
+ localStorage.removeItem("animalObbyScores");renderLeaderboard();
+ }
+};
+renderLeaderboard();
+
+buildWorld();
+makePlayer();
+
+function handleKey(e,down){
+ const k=e.key.toLowerCase();
+ if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k))e.preventDefault();
+ keys[k]=down;
+}
+addEventListener("keydown",e=>handleKey(e,true));
+addEventListener("keyup",e=>handleKey(e,false));
+document.querySelectorAll("[data-key]").forEach(b=>{
+ const k=b.dataset.key.toLowerCase();
+ const down=e=>{e.preventDefault();keys[k]=true;};
+ const up=e=>{e.preventDefault();keys[k]=false;};
+ b.addEventListener("pointerdown",down);
+ b.addEventListener("pointerup",up);
+ b.addEventListener("pointerleave",up);
+ b.addEventListener("pointercancel",up);
+});
+
+function movePlayer(dt){
+ if(!player)return;
+ const forward=keys["arrowup"]||keys["w"];
+ const back=keys["arrowdown"]||keys["s"];
+ const left=keys["arrowleft"]||keys["a"];
+ const right=keys["arrowright"]||keys["d"];
+ const jump=keys[" "]||keys["space"];
+ let dx=0,dz=0;
+ if(forward)dz-=1;
+ if(back)dz+=1;
+ if(left)dx-=1;
+ if(right)dx+=1;
+ if(dx||dz){
+   const len=Math.sqrt(dx*dx+dz*dz);dx/=len;dz/=len;
+   player.position.x+=dx*playerSpeed*(dt*60);
+   player.position.z+=dz*playerSpeed*(dt*60);
+   player.rotation.y=Math.atan2(dx,dz);
+ }
+ player.position.x=clamp(player.position.x,-23,23);
+ player.position.z=clamp(player.position.z,-24,17);
+ if(jump&&onGround){velocityY=.22;onGround=false;}
+ velocityY-=.012*(dt*60);
+ player.position.y+=velocityY*(dt*60);
+ if(player.position.y<=0){player.position.y=0;velocityY=0;onGround=true;}
+ // keep the camera behind and above the player
+ const target=new THREE.Vector3(player.position.x,player.position.y+2,player.position.z);
+ const camOffset=new THREE.Vector3(0,6,9);
+ camera.position.lerp(target.clone().add(camOffset),.12);
+ camera.lookAt(target);
+}
+
+function animate(){
+ requestAnimationFrame(animate);
+ const dt=Math.min(clock.getDelta(),.04);
+ if(started)movePlayer(dt);
+ if(targetMarker){
+   targetMarker.rotation.y+=dt*.8;
+   targetMarker.position.y=.1+Math.sin(performance.now()*.003)*.15;
+ }
+ if(animalGroup){
+   animalGroup.children.forEach((a,i)=>{a.position.y+=Math.sin(performance.now()*.003+i)*.001;});
+ }
+ renderer.render(scene,camera);
+}
+camera.position.set(-14,7,15);
+camera.lookAt(-14,1,3);
+animate();
+
+addEventListener("resize",()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+
+})();
+</script>
+</body>
+</html>
